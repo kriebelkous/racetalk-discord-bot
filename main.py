@@ -5,7 +5,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask
 import asyncio
-import uvicorn
+from waitress import serve
 from triggerAndResponse import check_triggers
 
 # Configure logging
@@ -65,17 +65,14 @@ def status():
     return f"<h1>Bot Status</h1><p>{bot.user} is {'Online' if bot.is_ready() else 'Offline'}</p>"
 
 async def run_flask():
-    port = int(os.getenv('FLASK_PORT', 8000))
-    config = uvicorn.Config(
-        app=flask_app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info",
-        access_log=True
+    port = int(os.getenv('FLASK_PORT', 8002))
+    logger.info(f'Starting Flask server via waitress on port {port}')
+    # Run waitress in a non-blocking way
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: serve(flask_app, host='0.0.0.0', port=port, threads=2)
     )
-    server = uvicorn.Server(config)
-    logger.info(f'Starting Flask server via uvicorn on port {port}')
-    await server.serve()
 
 async def main():
     token = os.getenv('DISCORD_TOKEN')
