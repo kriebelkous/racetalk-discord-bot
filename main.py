@@ -6,7 +6,6 @@ from logging.handlers import RotatingFileHandler
 from gunicorn.app.base import BaseApplication
 from flask import Flask
 import threading
-import signal
 import sys
 from triggerAndResponse import check_triggers
 
@@ -15,11 +14,9 @@ def configure_logging():
     log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
     
-    # Get log rotation settings from environment variables
-    max_bytes = int(os.getenv('LOG_MAX_BYTES', 5 * 1024 * 1024))  # Default: 5MB
-    backup_count = int(os.getenv('LOG_BACKUP_COUNT', 3))  # Default: 3 backups
+    max_bytes = int(os.getenv('LOG_MAX_BYTES', 5 * 1024 * 1024))
+    backup_count = int(os.getenv('LOG_BACKUP_COUNT', 3))
     
-    # Set up handlers
     console_handler = logging.StreamHandler()
     file_handler = RotatingFileHandler(
         'bot.log',
@@ -27,12 +24,10 @@ def configure_logging():
         backupCount=backup_count
     )
     
-    # Define log format
     log_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(log_format)
     file_handler.setFormatter(log_format)
     
-    # Configure root logger
     logging.basicConfig(
         level=numeric_level,
         handlers=[console_handler, file_handler]
@@ -97,30 +92,20 @@ def run_gunicorn():
     }
     logger.info(f'Starting Gunicorn on port {port}')
     gunicorn_app = GunicornApp(flask_app, options)
-    # Run until shutdown is signaled
     try:
         gunicorn_app.run()
-    except KeyboardInterrupt:
-        logger.info('Gunicorn received shutdown signal')
-    finally:
+    except Exception as e:
+        logger.error(f'Gunicorn failed: {e}')
         shutdown_event.set()
+    finally:
         logger.info('Gunicorn thread stopped')
-
-def signal_handler(sig, frame):
-    logger.info(f'Received signal {signal.Signals(sig).name}, initiating shutdown')
-    shutdown_event.set()
-    bot.loop.create_task(bot.close())  # Gracefully close Discord bot
-    sys.exit(0)
+        shutdown_event.set()
 
 def main():
     token = os.getenv('DISCORD_TOKEN')
     if not token:
         logger.error('DISCORD_TOKEN not set')
         raise ValueError('DISCORD_TOKEN not set')
-    
-    # Register signal handlers for graceful shutdown
-    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # Docker stop, etc.
     
     gunicorn_thread = threading.Thread(target=run_gunicorn)
     gunicorn_thread.start()
@@ -132,6 +117,10 @@ def main():
         logger.error('Failed to login to Discord: Invalid token')
         shutdown_event.set()
         raise
+    except KeyboardInterrupt:
+        logger.info('Received shutdown request')
+        shutdown_event.set()
+        bot.loop.create_task(bot.close())
     except Exception as e:
         logger.error(f'Bot encountered an error: {e}')
         shutdown_event.set()
@@ -139,9 +128,10 @@ def main():
     finally:
         logger.info('Bot shutting down')
         shutdown_event.set()
-        gunicorn_thread.join(timeout=5.0)  # Wait for Gunicorn to stop
+        gunicorn_thread.join(timeout=5.0)
         if gunicorn_thread.is_alive():
             logger.warning('Gunicorn thread did not stop gracefully')
+        sys.exit(0)
 
 if __name__ == '__main__':
     main()
