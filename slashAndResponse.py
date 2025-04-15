@@ -5,29 +5,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 def setup_slash_commands(bot):
-    @bot.tree.command(name="slashtest", description="Show available slashtest options")
-    async def slashtest(interaction: discord.Interaction):
-        """Show available slashtest options."""
-        logger.debug(f'/slashtest called by {interaction.user}')
-        await interaction.response.send_message(
-            "Available options: test1, test2, test3\nUse `/slashtest_<option>` (e.g., `/slashtest_test1`)",
-            ephemeral=False
-        )
-
-    @bot.tree.command(name="slashtest_test1", description="Get test1 response")
-    async def slashtest_test1(interaction: discord.Interaction):
-        """Respond with test1response."""
-        logger.debug(f'/slashtest_test1 called by {interaction.user}')
-        await interaction.response.send_message("test1response", ephemeral=False)
-
-    @bot.tree.command(name="slashtest_test2", description="Get test2 response")
-    async def slashtest_test2(interaction: discord.Interaction):
-        """Respond with test2response."""
-        logger.debug(f'/slashtest_test2 called by {interaction.user}')
-        await interaction.response.send_message("test2response", ephemeral=False)
-
-    @bot.tree.command(name="slashtest_test3", description="Get test3 response")
-    async def slashtest_test3(interaction: discord.Interaction):
-        """Respond with test3response."""
-        logger.debug(f'/slashtest_test3 called by {interaction.user;}
-        await interaction.response.send_message("test3response", ephemeral=False)
+    @bot.tree.command(name="slashtest", description="Run slashtest with an option")
+    @app_commands.describe(option="Choose test1, test2, or test3")
+    @app_commands.choices(option=[
+        app_commands.Choice(name="test1", value="test1"),
+        app_commands.Choice(name="test2", value="test2"),
+        app_commands.Choice(name="test3", value="test3")
+    ])
+    async def slashtest(interaction: discord.Interaction, option: str):
+        """Run slashtest with a selected option."""
+        logger.debug(f'/slashtest {option} called by {interaction.user}')
+        responses = {
+            "test1": "test1response",
+            "test2": "test2response",
+            "test3": "test3response"
+        }
+        await interaction.response.send_message(responses.get(option, "Invalid option. Choose test1, test2, or test3"), ephemeral=False)
