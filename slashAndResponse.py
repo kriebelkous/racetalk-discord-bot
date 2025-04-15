@@ -10,7 +10,7 @@ def setup_slash_commands(bot):
         """Show available slashtest options."""
         logger.debug(f'/slashtest called by {interaction.user}')
         await interaction.response.send_message(
-            "Available options: test1, test2, test3\nUse `/prefixtest_<option>` (e.g., `/prefixtest_test1`)",
+            "Available options: test1, test2, test3\nUse `/slashtest_<option>` (e.g., `/slashtest_test1`)",
             ephemeral=False
         )
 
@@ -29,5 +29,5 @@ def setup_slash_commands(bot):
     @bot.tree.command(name="slashtest_test3", description="Get test3 response")
     async def slashtest_test3(interaction: discord.Interaction):
         """Respond with test3response."""
-        logger.debug(f'/slashtest_test3 called by {interaction.user}')
+        logger.debug(f'/slashtest_test3 called by {interaction.user;}
         await interaction.response.send_message("test3response", ephemeral=False)
