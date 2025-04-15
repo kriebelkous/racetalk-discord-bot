@@ -10,7 +10,7 @@ def check_triggers(content):
     global last_randomtest_response, sequencetest_index
     words = content.split()
     
-    # Existing triggers
+    # Hardcoded responses for testing
     if "wildcardtest" in words:
         return "wildcardresponse"
     if len(words) == 1 and words[0] == "standalonetest":
@@ -22,7 +22,7 @@ def check_triggers(content):
     if "standalonetest" in words and len(words) > 1:
         return "Dont use this keyword in a sentence"
     
-    # Randomtest trigger (from previous request)
+    # Randomtest trigger
     if "randomtest" in words:
         randomtest_responses = [
             "response01",
@@ -42,7 +42,7 @@ def check_triggers(content):
         last_randomtest_response = chosen_response
         return chosen_response
     
-    # New trigger: sequencetest
+    # Sequencetest trigger
     if "sequencetest" in words:
         # Define possible responses (1 to 50; here we use 3 as an example, but you can expand)
         sequencetest_responses = [

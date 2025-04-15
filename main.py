@@ -7,6 +7,7 @@ from flask import Flask
 import asyncio
 from waitress import serve
 from triggerAndResponse import check_triggers
+from prefixAndResponse import setup_commands  # New import
 
 # Configure logging
 def configure_logging():
@@ -49,15 +50,20 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     logger.info(f'Bot is ready as {bot.user}')
+    # Register prefix commands
+    setup_commands(bot)
+    logger.info("Prefix commands registered")
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
+    # Check for trigger-based responses
     response = check_triggers(message.content.lower())
     if response:
         logger.debug(f'Message triggered response: "{message.content}" -> "{response}"')
         await message.channel.send(response)
+    # Process commands (e.g., !tijden)
     await bot.process_commands(message)
 
 @flask_app.route('/')
@@ -67,7 +73,6 @@ def status():
 async def run_flask():
     port = int(os.getenv('FLASK_PORT', 8002))
     logger.info(f'Starting Flask server via waitress on port {port}')
-    # Run waitress in a non-blocking way
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(
         None,
@@ -81,7 +86,6 @@ async def main():
         raise ValueError('DISCORD_TOKEN not set')
     
     try:
-        # Start Flask and bot concurrently
         flask_task = asyncio.create_task(run_flask())
         bot_task = asyncio.create_task(bot.start(token))
         await asyncio.gather(flask_task, bot_task, return_exceptions=True)
