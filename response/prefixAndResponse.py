@@ -27,3 +27,29 @@ def setup_commands(bot):
         """Respond to !prefixtest test3."""
         logger.debug(f'{bot.command_prefix}prefixtest test3 called by {ctx.author}')
         await ctx.send("test3response")
+
+    @bot.command()
+    async def testcommands(ctx):
+        """Show a list of test commands."""
+        logger.debug(f'{bot.command_prefix}testcommands called by {ctx.author}')
+        await ctx.send(
+            "trigger and response test:\n"
+            "wildcardtest\n"
+            "test wildcardtest\n"
+            "standalonetest\n"
+            "test standalonetest\n"
+            "sentencetest\n"
+            "test sentencetest\n"
+            "userspecifictest\n"
+            "randomtest\n"
+            "sequencetest\n"
+            " "
+            "mention test\n"
+            "test\n"
+            "userspecific\n"
+            " "
+            "slash command test\n"
+            "/slashtest\n"
+            " "
+            "!prefixtest\n"
+        )
