@@ -5,25 +5,25 @@ logger = logging.getLogger(__name__)
 
 def setup_commands(bot):
     @bot.group(invoke_without_command=True)
-    async def tijden(ctx):
-        """Show available tijden options when !tijden is used alone."""
-        logger.debug(f'!tijden called by {ctx.author}')
-        await ctx.send("Available options: f1, f2, f3\nUse `!tijden <option>` (e.g., `!tijden f1`)")
+    async def prefixtest(ctx):
+        """Show available prefixtest options when !prefixtest is used alone."""
+        logger.debug(f'{bot.command_prefix}prefixtest called by {ctx.author}')
+        await ctx.send(f"Available options: test1, test2, test3\nUse `{bot.command_prefix}prefixtest <option>` (e.g., `{bot.command_prefix}prefixtest test1`)")
 
-    @tijden.command(name='f1')
-    async def tijden_f1(ctx):
-        """Respond to !tijden f1."""
-        logger.debug(f'!tijden f1 called by {ctx.author}')
-        await ctx.send("hier zijn de f1 tijden")
+    @prefixtest.command(name='test1')
+    async def prefixtest_test1(ctx):
+        """Respond to !prefixtest test1."""
+        logger.debug(f'{bot.command_prefix}prefixtest test1 called by {ctx.author}')
+        await ctx.send("test1response")
 
-    @tijden.command(name='f2')
-    async def tijden_f2(ctx):
-        """Respond to !tijden f2."""
-        logger.debug(f'!tijden f2 called by {ctx.author}')
-        await ctx.send("hier zijn de f2 tijden")
+    @prefixtest.command(name='test2')
+    async def prefixtest_test2(ctx):
+        """Respond to !prefixtest test2."""
+        logger.debug(f'{bot.command_prefix}prefixtest test2 called by {ctx.author}')
+        await ctx.send("test2response")
 
-    @tijden.command(name='f3')
-    async def tijden_f3(ctx):
-        """Respond to !tijden f3."""
-        logger.debug(f'!tijden f3 called by {ctx.author}')
-        await ctx.send("hier zijn de f3 tijden")
+    @prefixtest.command(name='test3')
+    async def prefixtest_test3(ctx):
+        """Respond to !prefixtest test3."""
+        logger.debug(f'{bot.command_prefix}prefixtest test3 called by {ctx.author}')
+        await ctx.send("test3response")
