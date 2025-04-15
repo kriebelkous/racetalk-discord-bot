@@ -7,7 +7,7 @@ from flask import Flask
 import asyncio
 from waitress import serve
 from triggerAndResponse import check_triggers
-from prefixAndResponse import setup_commands  # New import
+from prefixAndResponse import setup_commands
 
 # Configure logging
 def configure_logging():
@@ -45,11 +45,13 @@ flask_app = Flask(__name__)
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Read prefix from environment variable, default to '!' if not set
+prefix = os.getenv('BOT_PREFIX', '!')
+bot = commands.Bot(command_prefix=prefix, intents=intents)
 
 @bot.event
 async def on_ready():
-    logger.info(f'Bot is ready as {bot.user}')
+    logger.info(f'Bot is ready as {bot.user} with prefix "{prefix}"')
     # Register prefix commands
     setup_commands(bot)
     logger.info("Prefix commands registered")
@@ -63,7 +65,7 @@ async def on_message(message):
     if response:
         logger.debug(f'Message triggered response: "{message.content}" -> "{response}"')
         await message.channel.send(response)
-    # Process commands (e.g., !tijden)
+    # Process commands (e.g., !tijden or custom prefix)
     await bot.process_commands(message)
 
 @flask_app.route('/')
