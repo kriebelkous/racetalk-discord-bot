@@ -6,10 +6,10 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 import asyncio
 from waitress import serve
-from triggerAndResponse import check_triggers
-from prefixAndResponse import setup_commands
-from slashAndResponse import setup_slash_commands
-from mentionAndResponse import check_mentions  # New import
+from response.triggerAndResponse import check_triggers
+from response.prefixAndResponse import setup_commands
+from response.slashAndResponse import setup_slash_commands
+from response.mentionAndResponse import check_mentions  # New import
 
 # Configure logging
 def configure_logging():
