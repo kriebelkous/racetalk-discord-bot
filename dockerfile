@@ -6,4 +6,5 @@ COPY main.py .
 COPY triggerAndResponse.py .
 COPY prefixAndResponse.py .
 COPY slashAndResponse.py .
+COPY mentionAndResponse.py .
 CMD ["python", "main.py"]

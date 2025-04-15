@@ -8,7 +8,8 @@ import asyncio
 from waitress import serve
 from triggerAndResponse import check_triggers
 from prefixAndResponse import setup_commands
-from slashAndResponse import setup_slash_commands  # New import
+from slashAndResponse import setup_slash_commands
+from mentionAndResponse import check_mentions  # New import
 
 # Configure logging
 def configure_logging():
@@ -65,6 +66,12 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
+    
+    # Check for mention-based responses
+    response = check_mentions(message, bot.user)
+    if response:
+        logger.debug(f'Mention triggered response: "{message.content}" -> "{response}"')
+        await message.channel.send(response)
     
     # Check for trigger-based responses
     response = check_triggers(message.content.lower())
