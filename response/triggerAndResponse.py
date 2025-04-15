@@ -6,21 +6,35 @@ last_randomtest_response = None
 # Store the current index for the sequencetest trigger
 sequencetest_index = 0
 
-def check_triggers(content):
+def check_triggers(message):
     global last_randomtest_response, sequencetest_index
+    
+    # Hardcoded specific user ID (replace with your actual Discord user ID)
+    specific_user_id = 688688081909448949  # TODO: Replace with your user ID
+    
+    # Extract content and author from message
+    content = message.content.lower()
+    author_id = message.author.id
     words = content.split()
     
-    # Hardcoded responses for testing
+    # Check if the author is the specific user
+    is_specific_user = author_id == specific_user_id
+    
+    # Triggers with user-specific responses
     if "wildcardtest" in words:
-        return "wildcardresponse"
+        return "wildcardresponse (special)" if is_specific_user else "wildcardresponse"
+    
     if len(words) == 1 and words[0] == "standalonetest":
-        return "standalone response"
+        return "standalone response (special)" if is_specific_user else "standalone response"
+    
     if len(words) == 1 and words[0] == "sentencetest":
-        return "use this keyword in a sentence"
+        return "use this keyword in a sentence (special)" if is_specific_user else "use this keyword in a sentence"
+    
     if "sentencetest" in words and len(words) > 1:
-        return "sentencetest response"
+        return "sentencetest response (special)" if is_specific_user else "sentencetest response"
+    
     if "standalonetest" in words and len(words) > 1:
-        return "Dont use this keyword in a sentence"
+        return "Dont use this keyword in a sentence (special)" if is_specific_user else "Dont use this keyword in a sentence"
     
     # Randomtest trigger
     if "randomtest" in words:
@@ -40,11 +54,10 @@ def check_triggers(content):
             available_responses = randomtest_responses
         chosen_response = random.choice(available_responses)
         last_randomtest_response = chosen_response
-        return chosen_response
+        return f"{chosen_response} (special)" if is_specific_user else chosen_response
     
     # Sequencetest trigger
     if "sequencetest" in words:
-        # Define possible responses (1 to 50; here we use 3 as an example, but you can expand)
         sequencetest_responses = [
             "response01",
             "response02",
@@ -52,16 +65,11 @@ def check_triggers(content):
             "response04"
         ]
         
-        # Ensure response list length is within bounds (1 to 50)
         if not (1 <= len(sequencetest_responses) <= 50):
             return "Error: sequencetest must have between 1 and 50 responses"
         
-        # Get the current response based on the index
         chosen_response = sequencetest_responses[sequencetest_index]
-        
-        # Update the index for the next call (cycle back to 0 if at the end)
         sequencetest_index = (sequencetest_index + 1) % len(sequencetest_responses)
-        
-        return chosen_response
+        return f"{chosen_response} (special)" if is_specific_user else chosen_response
     
     return None

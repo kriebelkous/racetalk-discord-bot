@@ -9,7 +9,7 @@ from waitress import serve
 from response.triggerAndResponse import check_triggers
 from response.prefixAndResponse import setup_commands
 from response.slashAndResponse import setup_slash_commands
-from response.mentionAndResponse import check_mentions  # New import
+from response.mentionAndResponse import check_mentions
 
 # Configure logging
 def configure_logging():
@@ -74,7 +74,7 @@ async def on_message(message):
         await message.channel.send(response)
     
     # Check for trigger-based responses
-    response = check_triggers(message.content.lower())
+    response = check_triggers(message)  # Pass message instead of content
     if response:
         logger.debug(f'Message triggered response: "{message.content}" -> "{response}"')
         await message.channel.send(response)
