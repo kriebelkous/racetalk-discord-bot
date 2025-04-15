@@ -8,6 +8,7 @@ import asyncio
 from waitress import serve
 from triggerAndResponse import check_triggers
 from prefixAndResponse import setup_commands
+from slashAndResponse import setup_slash_commands  # New import
 
 # Configure logging
 def configure_logging():
@@ -45,27 +46,33 @@ flask_app = Flask(__name__)
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
-# Read prefix from environment variable, default to '!' if not set
 prefix = os.getenv('BOT_PREFIX', '!')
 bot = commands.Bot(command_prefix=prefix, intents=intents)
 
 @bot.event
 async def on_ready():
     logger.info(f'Bot is ready as {bot.user} with prefix "{prefix}"')
-    # Register prefix commands
     setup_commands(bot)
-    logger.info("Prefix commands registered")
+    setup_slash_commands(bot)
+    try:
+        synced = await bot.tree.sync()
+        logger.info(f"Synced {len(synced)} slash command(s)")
+    except Exception as e:
+        logger.error(f"Failed to sync slash commands: {e}")
+    logger.info("Commands registered")
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
+    
     # Check for trigger-based responses
     response = check_triggers(message.content.lower())
     if response:
         logger.debug(f'Message triggered response: "{message.content}" -> "{response}"')
         await message.channel.send(response)
-    # Process commands (e.g., !tijden or custom prefix)
+    
+    # Process prefix commands (e.g., !prefixtest)
     await bot.process_commands(message)
 
 @flask_app.route('/')
