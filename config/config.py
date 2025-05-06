@@ -9,3 +9,6 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DB_NAME = os.getenv("DB_NAME")
 FLASK_PORT = int(os.getenv("FLASK_PORT"))
 MONGO_URI = f"mongodb://{quote_plus(MONGO_USER)}:{quote_plus(MONGO_PASSWORD)}@{MONGO_HOST}:{MONGO_PORT}/{DB_NAME}?authSource=admin"
+
+# Define the sync interval (in minutes) for the user sync to database
+SYNC_INTERVAL_MINUTES = int(os.getenv("SYNC_INTERVAL_MINUTES"))
