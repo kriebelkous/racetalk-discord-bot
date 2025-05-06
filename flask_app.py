@@ -1,8 +1,12 @@
-from config.config import FLASK_PORT, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, DISCORD_TOKEN, GUILD_ID, REQUIRED_ROLE_ID
+import os
 from flask import Flask, redirect, request, session, url_for
 from flask_session import Session
 import requests
-import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+from config.config import FLASK_PORT, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, DISCORD_TOKEN, GUILD_ID, REQUIRED_ROLE_ID
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev")
