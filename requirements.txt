@@ -2,3 +2,4 @@ discord.py>=2.3.2,<3.0
 flask>=3.0.0,<4.0
 gunicorn
 pymongo
+flask_session
