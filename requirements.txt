@@ -4,3 +4,4 @@ gunicorn
 pymongo
 flask_session
 requests
+dotenv
