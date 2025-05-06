@@ -1,23 +1,38 @@
+
 import os
+
+from logging.logging import get_logger
+logger = get_logger("flask_app")
+
 from flask import Flask, redirect, request, session, url_for
 from flask_session import Session
 import requests
 from dotenv import load_dotenv
-
-from config.logging import get_logger
-from config.config import FLASK_PORT, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, DISCORD_TOKEN, GUILD_ID, REQUIRED_ROLE_ID
-
-logger = get_logger("flask_app")
 load_dotenv()
+logger.info("loaded imports")
+
+from config.config import FLASK_PORT, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, DISCORD_TOKEN, GUILD_ID, REQUIRED_ROLE_ID
+logger.info("variables")
+
+
+
+logger.info("Initializing Flask app")
 
 app = Flask(__name__)
+logger.info("1")
 app.secret_key = os.getenv("SECRET_KEY", "dev")
+logger.info("2")
 app.config["SESSION_TYPE"] = "filesystem"
+logger.info("3")
 Session(app)
+logger.info("4")
 
 DISCORD_API_BASE_URL = "https://discord.com/api"
+logger.info("5")
 OAUTH_AUTHORIZE_URL = f"{DISCORD_API_BASE_URL}/oauth2/authorize"
+logger.info("6")
 OAUTH_TOKEN_URL = f"{DISCORD_API_BASE_URL}/oauth2/token"
+logger.info("7")
 
 @app.route("/")
 def health():
