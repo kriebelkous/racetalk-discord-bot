@@ -1,7 +1,7 @@
 
 import os
 
-from logging.logging import get_logger
+from logger.logger import get_logger
 logger = get_logger("flask_app")
 
 from flask import Flask, redirect, request, session, url_for
