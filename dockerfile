@@ -1,21 +1,35 @@
-FROM python:3.9-slim
+# Use Python 3.11 slim base image
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn supervisor
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    supervisor \
+    && rm -rf /apt/lists/*
 
-# Copy application code
+# Copy project files
 COPY . .
 
-# Copy supervisord configuration
-COPY supervisord.conf /etc/supervisord.conf
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the Flask port (ensure it matches FLASK_PORT in your config)
+# Create non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+
+# Set permissions for trigger_signal (optional, as code creates it)
+RUN touch trigger_signal && chown appuser:appuser trigger_signal && chmod 664 trigger_signal
+
+# Copy Supervisor config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Switch to non-root user
+USER appuser
+
+# Expose Flask port
 EXPOSE 5000
 
-# Run supervisord
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+# Run Supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
