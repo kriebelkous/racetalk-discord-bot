@@ -7,7 +7,7 @@ from flask import Flask, redirect, request, session, url_for, render_template, f
 from flask_session import Session
 import requests
 from dotenv import load_dotenv
-from database import db, get_triggers, store_user
+from database.database import db, get_triggers, store_user
 load_dotenv()
 
 logger = get_logger("flask_app")
