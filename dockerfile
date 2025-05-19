@@ -1,13 +1,13 @@
 # Use Python 3.11 slim base image
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     supervisor \
-    && rm -rf /apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
 
 # Copy project files
 COPY . .
@@ -17,10 +17,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
+RUN useradd -m appuser && \
+    mkdir -p /app/logs /app/run && \
+    chown -R appuser:appuser /app
 
-# Set permissions for trigger_signal (optional, as code creates it)
-RUN touch trigger_signal && chown appuser:appuser trigger_signal && chmod 664 trigger_signal
+# Optionally pre-create trigger_signal
+RUN touch /app/trigger_signal && \
+    chown appuser:appuser /app/trigger_signal && \
+    chmod 664 /app/trigger_signal
 
 # Copy Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
