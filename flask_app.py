@@ -7,7 +7,7 @@ from flask import Flask, redirect, request, session, url_for, render_template, f
 from flask_session import Session
 import requests
 from dotenv import load_dotenv
-from database.database import db, get_triggers, store_user
+from database import db, get_triggers, store_user
 load_dotenv()
 
 logger = get_logger("flask_app")
@@ -25,6 +25,8 @@ Session(app)
 DISCORD_API_BASE_URL = "https://discord.com/api"
 OAUTH_AUTHORIZE_URL = f"{DISCORD_API_BASE_URL}/oauth2/authorize"
 OAUTH_TOKEN_URL = f"{DISCORD_API_BASE_URL}/oauth2/token"
+
+SIGNAL_FILE = "trigger_signal"
 
 def validate_trigger_words(words, is_regex):
     """Validate trigger words or regex patterns."""
@@ -56,6 +58,17 @@ def get_users():
     except Exception as e:
         logger.exception("Failed to fetch users")
         return []
+
+def touch_signal_file():
+    """Update the modification time of the signal file."""
+    try:
+        if not os.path.exists(SIGNAL_FILE):
+            with open(SIGNAL_FILE, "w") as f:
+                pass
+        os.utime(SIGNAL_FILE, None)
+        logger.info("Updated trigger signal file")
+    except Exception as e:
+        logger.error(f"Failed to update signal file: {e}")
 
 @app.route("/")
 def health():
@@ -138,7 +151,6 @@ def add_trigger():
             for uid, resp in zip(user_override_ids, user_override_responses):
                 if uid and resp:
                     user_overrides[uid] = [resp]
-                    # Ensure user is stored
                     user_data = next((u for u in users if u["user_id"] == uid), None)
                     if user_data and user_data.get("username"):
                         store_user(uid, user_data["username"])
@@ -161,6 +173,7 @@ def add_trigger():
 
         try:
             db.triggers.insert_one(trigger)
+            touch_signal_file()  # Signal bot to reload triggers
             logger.info(f"Created trigger {trigger_id} by user {user['id']}")
             flash("Trigger created successfully!", "success")
             return redirect(url_for("dashboard"))
@@ -218,7 +231,6 @@ def edit_trigger(trigger_id):
             for uid, resp in zip(user_override_ids, user_override_responses):
                 if uid and resp:
                     user_overrides[uid] = [resp]
-                    # Ensure user is stored
                     user_data = next((u for u in users if u["user_id"] == uid), None)
                     if user_data and user_data.get("username"):
                         store_user(uid, user_data["username"])
@@ -239,6 +251,7 @@ def edit_trigger(trigger_id):
                 {"trigger_id": trigger_id},
                 {"$set": updated_trigger}
             )
+            touch_signal_file()  # Signal bot to reload triggers
             logger.info(f"Updated trigger {trigger_id} by user {user['id']}")
             flash("Trigger updated successfully!", "success")
             return redirect(url_for("dashboard"))
@@ -262,6 +275,7 @@ def delete_trigger(trigger_id):
         result = db.triggers.delete_one({"trigger_id": trigger_id})
         if result.deleted_count == 0:
             raise ValueError("Trigger not found")
+        touch_signal_file()  # Signal bot to reload triggers
         logger.info(f"Deleted trigger {trigger_id} by user {user['id']}")
         flash("Trigger deleted successfully!", "success")
     except Exception as e:
@@ -309,7 +323,6 @@ def callback():
             headers={"Authorization": f"Bearer {token}"}
         ).json()
         session["discord_user"] = user_data
-        # Store the logged-in user
         store_user(user_data["id"], f"{user_data['username']}#{user_data['discriminator']}")
         logger.info(f"Logged in user: {user_data}")
     except Exception as e:

@@ -1,13 +1,28 @@
-import random
-import re
+from database import get_triggers
 from logger.logger import get_logger
-from database.database import get_triggers
+import re
+import random
 
-logger = get_logger("Triggers")
+logger = get_logger("TriggerProcessor")
 
 class TriggerProcessor:
     def __init__(self):
-        self.triggers = get_triggers()
+        self.triggers = []
+        self.load_triggers()
+
+    def load_triggers(self):
+        """Load triggers from the database."""
+        try:
+            self.triggers = get_triggers()
+            logger.info(f"Loaded {len(self.triggers)} triggers")
+        except Exception as e:
+            logger.error(f"Failed to load triggers: {e}")
+            self.triggers = []
+
+    def reload_triggers(self):
+        """Reload triggers from the database."""
+        self.load_triggers()
+        logger.info("Triggers reloaded")
 
     def process(self, message):
         content = message.content.lower()
@@ -17,12 +32,11 @@ class TriggerProcessor:
             responses = trig.get("responses", [])
             user_overrides = trig.get("user_overrides", {})
             method = trig.get("method", "random")
-            is_regex = trig.get("is_regex", False)  # New flag for regex support
+            is_regex = trig.get("is_regex", False)
 
             for word in trig.get("words", []):
                 matched = False
                 if is_regex:
-                    # Treat word as a regex pattern
                     try:
                         if match_type == "both":
                             matched = bool(re.search(word, content))
@@ -34,7 +48,6 @@ class TriggerProcessor:
                         logger.error(f"Invalid regex pattern '{word}': {e}")
                         continue
                 else:
-                    # Original non-regex matching
                     matched = (
                         (match_type == "both" and word in content) or
                         (match_type == "sentence" and word in content.split()) or
