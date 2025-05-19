@@ -11,7 +11,7 @@ import time
 logger = get_logger("Bot")
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 trigger_processor = TriggerProcessor()
-SIGNAL_FILE = "trigger_signal"
+SIGNAL_FILE = "/tmp/trigger_signal"
 
 async def monitor_signal_file():
     """Background task to monitor signal file for trigger reload."""
