@@ -1,38 +1,61 @@
-
 import os
-
+import uuid
+import re
+from datetime import datetime
 from logger.logger import get_logger
-logger = get_logger("flask_app")
-
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, redirect, request, session, url_for, render_template, flash
 from flask_session import Session
 import requests
 from dotenv import load_dotenv
+from database import db, get_triggers, store_user
 load_dotenv()
-logger.info("loaded imports")
+
+logger = get_logger("flask_app")
+logger.info("Loaded imports")
 
 from config.config import FLASK_PORT, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, DISCORD_TOKEN, GUILD_ID, REQUIRED_ROLE_ID
-logger.info("variables")
-
-
+logger.info("Loaded config variables")
 
 logger.info("Initializing Flask app")
-
 app = Flask(__name__)
-logger.info("1")
 app.secret_key = os.getenv("SECRET_KEY", "dev")
-logger.info("2")
 app.config["SESSION_TYPE"] = "filesystem"
-logger.info("3")
 Session(app)
-logger.info("4")
 
 DISCORD_API_BASE_URL = "https://discord.com/api"
-logger.info("5")
 OAUTH_AUTHORIZE_URL = f"{DISCORD_API_BASE_URL}/oauth2/authorize"
-logger.info("6")
 OAUTH_TOKEN_URL = f"{DISCORD_API_BASE_URL}/oauth2/token"
-logger.info("7")
+
+def validate_trigger_words(words, is_regex):
+    """Validate trigger words or regex patterns."""
+    if not words:
+        return False, "At least one trigger word is required."
+    if is_regex:
+        for word in words:
+            try:
+                re.compile(word)
+            except re.error:
+                return False, f"Invalid regex pattern: {word}"
+    return True, ""
+
+def convert_condition_to_regex(word, condition):
+    """Convert trigger condition to regex pattern."""
+    word = re.escape(word.strip())
+    if condition == "beginning":
+        return f"^{word}\\b"
+    elif condition == "end":
+        return f"\\b{word}$"
+    else:  # anywhere
+        return f"\\b{word}\\b"
+
+def get_users():
+    """Fetch all users from the users collection."""
+    try:
+        users = list(db.users.find({}, {"id": 1, "name": 1, "_id": 0}))
+        return [{"user_id": u["id"], "username": u.get("name")} for u in users]
+    except Exception as e:
+        logger.exception("Failed to fetch users")
+        return []
 
 @app.route("/")
 def health():
@@ -54,8 +77,198 @@ def health():
         logger.warning(f"User {user['id']} lacks required role {REQUIRED_ROLE_ID}.")
         return "Access denied: You do not have the required role.", 403
 
-    logger.info(f"User {user['username']}#{user['discriminator']} accessed the bot.")
-    return f"Bot is running! Welcome, {user['username']}#{user['discriminator']}", 200
+    return redirect(url_for("dashboard"))
+
+@app.route("/dashboard")
+def dashboard():
+    if "discord_user" not in session:
+        return redirect(url_for("login"))
+    
+    user = session["discord_user"]
+    member = get_guild_member(user["id"])
+    if not member or REQUIRED_ROLE_ID not in member.get("roles", []):
+        return "Access denied.", 403
+
+    try:
+        triggers = get_triggers()
+        logger.info(f"Loaded {len(triggers)} triggers for user {user['id']}")
+    except Exception as e:
+        logger.exception("Failed to load triggers")
+        flash("Failed to load triggers.", "error")
+        triggers = []
+
+    return render_template("dashboard.html", user=user, triggers=triggers)
+
+@app.route("/trigger/add", methods=["GET", "POST"])
+def add_trigger():
+    if "discord_user" not in session:
+        return redirect(url_for("login"))
+    
+    user = session["discord_user"]
+    member = get_guild_member(user["id"])
+    if not member or REQUIRED_ROLE_ID not in member.get("roles", []):
+        return "Access denied.", 403
+
+    users = get_users()
+    if request.method == "POST":
+        trigger_words = request.form.getlist("trigger_words")
+        condition = request.form.get("condition")
+        match_type = request.form.get("match", "both")
+        responses = request.form.getlist("responses")
+        method = request.form.get("method", "random")
+        is_regex = request.form.get("is_regex") == "true"
+        enabled = request.form.get("enabled") == "true"
+        user_override_ids = request.form.getlist("user_override_ids")
+        user_override_responses = request.form.getlist("user_override_responses")
+
+        if not is_regex:
+            trigger_words = [convert_condition_to_regex(word, condition) for word in trigger_words]
+
+        valid, error = validate_trigger_words(trigger_words, is_regex)
+        if not valid:
+            flash(error, "error")
+            return render_template("add_trigger.html", user=user, users=users)
+
+        if not responses:
+            flash("At least one response is required.", "error")
+            return render_template("add_trigger.html", user=user, users=users)
+
+        user_overrides = {}
+        if user_override_ids and user_override_responses:
+            for uid, resp in zip(user_override_ids, user_override_responses):
+                if uid and resp:
+                    user_overrides[uid] = [resp]
+                    # Ensure user is stored
+                    user_data = next((u for u in users if u["user_id"] == uid), None)
+                    if user_data and user_data.get("username"):
+                        store_user(uid, user_data["username"])
+
+        trigger_id = f"trig_{uuid.uuid4().hex[:8]}"
+        now = datetime.utcnow().isoformat() + "Z"
+        trigger = {
+            "_id": str(uuid.uuid4()),
+            "trigger_id": trigger_id,
+            "words": trigger_words,
+            "match": match_type,
+            "responses": responses,
+            "method": method,
+            "is_regex": is_regex,
+            "user_overrides": user_overrides,
+            "enabled": enabled,
+            "created_at": now,
+            "updated_at": now
+        }
+
+        try:
+            db.triggers.insert_one(trigger)
+            logger.info(f"Created trigger {trigger_id} by user {user['id']}")
+            flash("Trigger created successfully!", "success")
+            return redirect(url_for("dashboard"))
+        except Exception as e:
+            logger.exception("Failed to create trigger")
+            flash("Failed to create trigger.", "error")
+
+    return render_template("add_trigger.html", user=user, users=users)
+
+@app.route("/trigger/edit/<trigger_id>", methods=["GET", "POST"])
+def edit_trigger(trigger_id):
+    if "discord_user" not in session:
+        return redirect(url_for("login"))
+    
+    user = session["discord_user"]
+    member = get_guild_member(user["id"])
+    if not member or REQUIRED_ROLE_ID not in member.get("roles", []):
+        return "Access denied.", 403
+
+    try:
+        trigger = db.triggers.find_one({"trigger_id": trigger_id})
+        if not trigger:
+            raise ValueError("Trigger not found")
+    except Exception as e:
+        logger.exception(f"Trigger {trigger_id} not found")
+        flash("Trigger not found.", "error")
+        return redirect(url_for("dashboard"))
+
+    users = get_users()
+    if request.method == "POST":
+        trigger_words = request.form.getlist("trigger_words")
+        condition = request.form.get("condition")
+        match_type = request.form.get("match", "both")
+        responses = request.form.getlist("responses")
+        method = request.form.get("method", "random")
+        is_regex = request.form.get("is_regex") == "true"
+        enabled = request.form.get("enabled") == "true"
+        user_override_ids = request.form.getlist("user_override_ids")
+        user_override_responses = request.form.getlist("user_override_responses")
+
+        if not is_regex:
+            trigger_words = [convert_condition_to_regex(word, condition) for word in trigger_words]
+
+        valid, error = validate_trigger_words(trigger_words, is_regex)
+        if not valid:
+            flash(error, "error")
+            return render_template("edit_trigger.html", user=user, trigger=trigger, users=users)
+
+        if not responses:
+            flash("At least one response is required.", "error")
+            return render_template("edit_trigger.html", user=user, trigger=trigger, users=users)
+
+        user_overrides = {}
+        if user_override_ids and user_override_responses:
+            for uid, resp in zip(user_override_ids, user_override_responses):
+                if uid and resp:
+                    user_overrides[uid] = [resp]
+                    # Ensure user is stored
+                    user_data = next((u for u in users if u["user_id"] == uid), None)
+                    if user_data and user_data.get("username"):
+                        store_user(uid, user_data["username"])
+
+        updated_trigger = {
+            "words": trigger_words,
+            "match": match_type,
+            "responses": responses,
+            "method": method,
+            "is_regex": is_regex,
+            "user_overrides": user_overrides,
+            "enabled": enabled,
+            "updated_at": datetime.utcnow().isoformat() + "Z"
+        }
+
+        try:
+            db.triggers.update_one(
+                {"trigger_id": trigger_id},
+                {"$set": updated_trigger}
+            )
+            logger.info(f"Updated trigger {trigger_id} by user {user['id']}")
+            flash("Trigger updated successfully!", "success")
+            return redirect(url_for("dashboard"))
+        except Exception as e:
+            logger.exception("Failed to update trigger")
+            flash("Failed to update trigger.", "error")
+
+    return render_template("edit_trigger.html", user=user, trigger=trigger, users=users)
+
+@app.route("/trigger/delete/<trigger_id>", methods=["POST"])
+def delete_trigger(trigger_id):
+    if "discord_user" not in session:
+        return redirect(url_for("login"))
+    
+    user = session["discord_user"]
+    member = get_guild_member(user["id"])
+    if not member or REQUIRED_ROLE_ID not in member.get("roles", []):
+        return "Access denied.", 403
+
+    try:
+        result = db.triggers.delete_one({"trigger_id": trigger_id})
+        if result.deleted_count == 0:
+            raise ValueError("Trigger not found")
+        logger.info(f"Deleted trigger {trigger_id} by user {user['id']}")
+        flash("Trigger deleted successfully!", "success")
+    except Exception as e:
+        logger.exception(f"Failed to delete trigger {trigger_id}")
+        flash("Failed to delete trigger.", "error")
+
+    return redirect(url_for("dashboard"))
 
 @app.route("/login")
 def login():
@@ -96,6 +309,8 @@ def callback():
             headers={"Authorization": f"Bearer {token}"}
         ).json()
         session["discord_user"] = user_data
+        # Store the logged-in user
+        store_user(user_data["id"], f"{user_data['username']}#{user_data['discriminator']}")
         logger.info(f"Logged in user: {user_data}")
     except Exception as e:
         logger.exception("Failed to retrieve user data")

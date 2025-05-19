@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold">Welcome, {{ user.username }}#{{ user.discriminator }}</h1>
+            <a href="{{ url_for('logout') }}" class="text-red-500 hover:underline">Logout</a>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} rounded">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <div class="mb-4">
+            <a href="{{ url_for('add_trigger') }}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add New Trigger</a>
+        </div>
+        <h2 class="text-xl font-semibold mb-2">Triggers</h2>
+        {% if triggers %}
+            <table class="w-full bg-white shadow rounded">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="p-2 text-left">Trigger ID</th>
+                        <th class="p-2 text-left">Words</th>
+                        <th class="p-2 text-left">Responses</th>
+                        <th class="p-2 text-left">Enabled</th>
+                        <th class="p-2 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trigger in triggers %}
+                        <tr>
+                            <td class="p-2">{{ trigger.trigger_id }}</td>
+                            <td class="p-2">{{ trigger.words | join(', ') }}</td>
+                            <td class="p-2">{{ trigger.responses | join(', ') }}</td>
+                            <td class="p-2">{{ 'Yes' if trigger.enabled else 'No' }}</td>
+                            <td class="p-2">
+                                <a href="{{ url_for('edit_trigger', trigger_id=trigger.trigger_id) }}" class="text-blue-500 hover:underline">Edit</a>
+                                <form action="{{ url_for('delete_trigger', trigger_id=trigger.trigger_id) }}" method="POST" class="inline">
+                                    <button type="submit" class="text-red-500 hover:underline" onclick="return confirm('Are you sure?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No triggers found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
